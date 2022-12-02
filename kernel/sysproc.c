@@ -1,7 +1,7 @@
 #include "types.h"
 #include "riscv.h"
-#include "defs.h"
 #include "param.h"
+#include "defs.h"
 #include "memlayout.h"
 #include "spinlock.h"
 #include "proc.h"
@@ -55,9 +55,8 @@ sys_sleep(void)
   int n;
   uint ticks0;
 
+
   argint(0, &n);
-  if(n < 0)
-    n = 0;
   acquire(&tickslock);
   ticks0 = ticks;
   while(ticks - ticks0 < n){
@@ -70,6 +69,45 @@ sys_sleep(void)
   release(&tickslock);
   return 0;
 }
+
+
+#ifdef LAB_PGTBL
+int
+sys_pgaccess(void)
+{
+  // lab pgtbl: your code here.
+  uint64 start_addr, res_addr, va;
+  int num_pages;
+  unsigned int temp;
+  pte_t *pte;
+  pagetable_t userpg = myproc()->pagetable;
+  int max_pages = 1L << 27;
+  argaddr(0, &start_addr);
+  argint(1, &num_pages);
+  argaddr(2, &res_addr);
+  if ( num_pages > max_pages )
+    num_pages = max_pages;
+  
+  temp = 0;
+  start_addr = PGROUNDDOWN(start_addr);
+  for ( int i = 0; i < num_pages; i++ ) {
+    va = start_addr+i*PGSIZE;
+    pte = walk(userpg, va, 0);
+    if ( pte == 0 ) 
+      continue;
+    
+    if ( (*pte & PTE_V) == 0 )
+      continue;
+
+    if ( (*pte & PTE_A) != 0 ) {
+      temp |= (1 << i); //set bitmask
+      *pte &= ~PTE_A; //clear accessed in pte
+    }
+  }
+  copyout(userpg, res_addr, (char *)&temp, sizeof(temp));
+  return 0;
+}
+#endif
 
 uint64
 sys_kill(void)

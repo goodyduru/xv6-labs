@@ -1,0 +1,8 @@
+Which other xv6 system call(s) could be made faster using this shared page? Explain how.
+The fork function. We can add a parent process memory address to this page so when the child needs data from the parent, they can easily reference this.
+
+Explain the output of vmprint in terms of Fig 3-4 from the text. What does page 0 contain? What is in page 2? When running in user mode, could the process read/write the memory mapped by page 1? What does the third to last page contain?
+Page 0 contains the process code.
+Page 2 contains the process guard page
+Page 1 can be read or written by the process in user mode because the read and write flag is activated.
+The third to the last page contains the usyscall mapping.

@@ -86,7 +86,6 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-
 CFLAGS = -Wall -Werror -Wno-error=infinite-recursion -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 
 ifdef LAB
@@ -239,6 +238,45 @@ barrier: notxv6/barrier.c
 	gcc -o barrier -g -O2 $(XCFLAGS) notxv6/barrier.c -pthread
 endif
 
+ifeq ($(LAB),$(filter $(LAB), lock))
+UPROGS += \
+	$U/_stats
+endif
+
+ifeq ($(LAB),traps)
+UPROGS += \
+	$U/_call\
+	$U/_bttest
+endif
+
+ifeq ($(LAB),lazy)
+UPROGS += \
+	$U/_lazytests
+endif
+
+ifeq ($(LAB),cow)
+UPROGS += \
+	$U/_cowtest
+endif
+
+ifeq ($(LAB),thread)
+UPROGS += \
+	$U/_uthread
+
+$U/uthread_switch.o : $U/uthread_switch.S
+	$(CC) $(CFLAGS) -c -o $U/uthread_switch.o $U/uthread_switch.S
+
+$U/_uthread: $U/uthread.o $U/uthread_switch.o $(ULIB)
+	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $U/_uthread $U/uthread.o $U/uthread_switch.o $(ULIB)
+	$(OBJDUMP) -S $U/_uthread > $U/uthread.asm
+
+ph: notxv6/ph.c
+	gcc -o ph -g -O2 $(XCFLAGS) notxv6/ph.c -pthread
+
+barrier: notxv6/barrier.c
+	gcc -o barrier -g -O2 $(XCFLAGS) notxv6/barrier.c -pthread
+endif
+
 ifeq ($(LAB),pgtbl)
 UPROGS += \
 	$U/_pgtbltest
@@ -254,8 +292,6 @@ ifeq ($(LAB),fs)
 UPROGS += \
 	$U/_bigfile
 endif
-
-
 
 ifeq ($(LAB),net)
 UPROGS += \
