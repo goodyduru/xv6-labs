@@ -106,6 +106,13 @@ extern uint64 sys_sigreturn(void);
 extern uint64 sys_trace(void);
 extern uint64 sys_sysinfo(void);
 
+#ifdef LAB_NET
+extern uint64 sys_connect(void);
+#endif
+#ifdef LAB_PGTBL
+extern uint64 sys_pgaccess(void);
+#endif
+
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
 static uint64 (*syscalls[])(void) = {
@@ -132,6 +139,12 @@ static uint64 (*syscalls[])(void) = {
 [SYS_close]   sys_close,
 [SYS_sigalarm] sys_sigalarm,
 [SYS_sigreturn] sys_sigreturn
+#ifdef LAB_NET
+[SYS_connect] sys_connect,
+#endif
+#ifdef LAB_PGTBL
+[SYS_pgaccess] sys_pgaccess,
+#endif
 [SYS_trace]   sys_trace,
 [SYS_sysinfo] sys_sysinfo,
 };
@@ -161,6 +174,8 @@ static char* syscall_names[] = {
 [SYS_trace]   "trace",
 [SYS_sysinfo] "sysinfo",
 };
+
+
 
 void
 syscall(void)
