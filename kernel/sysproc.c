@@ -67,6 +67,7 @@ sys_sleep(void)
     sleep(&ticks, &tickslock);
   }
   release(&tickslock);
+  backtrace();
   return 0;
 }
 
@@ -90,4 +91,58 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+
+uint64
+sys_sigalarm(void)
+{
+  int interval;
+  uint64 handler_addr;
+  uint xticks;
+  argint(0, &interval);
+  argaddr(1, &handler_addr);
+  acquire(&tickslock);
+  xticks = ticks;
+  release(&tickslock);
+  struct proc *current_proc = myproc();
+  current_proc->interval = interval;
+  current_proc->callback = handler_addr;
+  current_proc->last_tick = xticks;
+  return 0;
+}
+
+uint64
+sys_sigreturn(void)
+{
+  struct proc *current_proc = myproc();
+  current_proc->trapframe->epc = current_proc->alarmframe->epc;
+  current_proc->trapframe->ra = current_proc->alarmframe->ra;
+  current_proc->trapframe->sp = current_proc->alarmframe->sp;
+  current_proc->trapframe->t0 = current_proc->alarmframe->t0;
+  current_proc->trapframe->t1 = current_proc->alarmframe->t1;
+  current_proc->trapframe->t2 = current_proc->alarmframe->t2;
+  current_proc->trapframe->s0 = current_proc->alarmframe->s0;
+  current_proc->trapframe->s1 = current_proc->alarmframe->s1;
+  current_proc->trapframe->a1 = current_proc->alarmframe->a1;
+  current_proc->trapframe->a2 = current_proc->alarmframe->a2;
+  current_proc->trapframe->a3 = current_proc->alarmframe->a3;
+  current_proc->trapframe->a4 = current_proc->alarmframe->a4;
+  current_proc->trapframe->a5 = current_proc->alarmframe->a5;
+  current_proc->trapframe->a6 = current_proc->alarmframe->a6;
+  current_proc->trapframe->a7 = current_proc->alarmframe->a7;
+  current_proc->trapframe->s2 = current_proc->alarmframe->s2;
+  current_proc->trapframe->s3 = current_proc->alarmframe->s3;
+  current_proc->trapframe->s4 = current_proc->alarmframe->s4;
+  current_proc->trapframe->s5 = current_proc->alarmframe->s5;
+  current_proc->trapframe->s6 = current_proc->alarmframe->s6;
+  current_proc->trapframe->s7 = current_proc->alarmframe->s7;
+  current_proc->trapframe->s8 = current_proc->alarmframe->s8;
+  current_proc->trapframe->s9 = current_proc->alarmframe->s9;
+  current_proc->trapframe->s10 = current_proc->alarmframe->s10;
+  current_proc->trapframe->s11 = current_proc->alarmframe->s11;
+  current_proc->trapframe->t3 = current_proc->alarmframe->t3;
+  current_proc->trapframe->t4 = current_proc->alarmframe->t4;
+  current_proc->trapframe->t5 = current_proc->alarmframe->t5;
+  current_proc->trapframe->t6 = current_proc->alarmframe->t6;
+  return current_proc->alarmframe->a0;
 }
