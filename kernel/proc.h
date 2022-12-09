@@ -142,5 +142,6 @@ struct proc {
   int interval;
   uint last_tick;
   uint64 callback;
+  int handler_returned;
   struct alarmframe *alarmframe;
 };

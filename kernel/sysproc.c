@@ -108,6 +108,7 @@ sys_sigalarm(void)
   current_proc->interval = interval;
   current_proc->callback = handler_addr;
   current_proc->last_tick = xticks;
+  current_proc->handler_returned = 1;
   return 0;
 }
 
@@ -144,5 +145,6 @@ sys_sigreturn(void)
   current_proc->trapframe->t4 = current_proc->alarmframe->t4;
   current_proc->trapframe->t5 = current_proc->alarmframe->t5;
   current_proc->trapframe->t6 = current_proc->alarmframe->t6;
+  current_proc->handler_returned = 1;
   return current_proc->alarmframe->a0;
 }

@@ -40,10 +40,7 @@ ring()
   acquire(&tickslock);
   xticks = ticks;
   release(&tickslock);
-  if ( current_proc->alarmframe->sp ==  current_proc->trapframe->s0 ) {
-    return;
-  }
-  if ( (xticks - current_proc->last_tick) >= current_proc->interval)  {
+  if ( ((xticks - current_proc->last_tick) >= current_proc->interval) && current_proc->handler_returned == 1 )  {
     current_proc->last_tick = xticks;
     //copy from trapframe to alarmframe
     current_proc->alarmframe->epc = current_proc->trapframe->epc;
@@ -76,6 +73,8 @@ ring()
     current_proc->alarmframe->t4 = current_proc->trapframe->t4;
     current_proc->alarmframe->t5 = current_proc->trapframe->t5;
     current_proc->alarmframe->t6 = current_proc->trapframe->t6;
+
+    current_proc->handler_returned = 0;
 
     //set pc to callback
     current_proc->trapframe->epc = current_proc->callback;
