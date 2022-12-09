@@ -144,4 +144,5 @@ struct proc {
   uint64 callback;
   int handler_returned;
   struct alarmframe *alarmframe;
+  int syscall_mask;            // Track which syscall to trace
 };
