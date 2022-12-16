@@ -95,6 +95,7 @@ kalloc(void)
   return (void*)r;
 }
 
+
 void kincrement(uint64 pa) {
   if((pa % PGSIZE) != 0 || (char*)pa < end || pa >= PHYSTOP)
     panic("kincrement");
@@ -102,4 +103,21 @@ void kincrement(uint64 pa) {
   uint64 start = PGROUNDUP((uint64)end);
   int index = (pa - start )/ PGSIZE;
   references[index]++;
+}
+
+// Get free memory size
+int
+kfreememsize(void)
+{
+  struct run *r;
+  int count;
+  acquire(&kmem.lock);
+  r = kmem.freelist;
+  count = 0;
+  while(r) {
+    count++;
+    r = r->next;
+  }
+  release(&kmem.lock);
+  return count*PGSIZE;
 }
