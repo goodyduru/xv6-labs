@@ -123,9 +123,21 @@ usertrap(void)
       ring();
     }
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
+    // check for write instructions
+    if ( r_scause() == 15  ) {
+      uint64 va = r_stval();
+      uint64 result;
+      if ( (result = allocate_new(p->pagetable, va)) == 0 ) {
+        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+        setkilled(p);
+      }
+    }
+    else {
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      setkilled(p);
+    }
   }
 
   if(killed(p))
