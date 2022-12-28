@@ -1,0 +1,9 @@
+thread_switch needs to save/restore only the callee-save registers. Why?
+The C compiler generates code in the caller to save caller-saved registers on the stack.
+
+Why are there missing keys with 2 threads, but not with 1 thread? Identify a sequence of events with 2 threads that can lead to a key being missing.
+* If the key is already present for both threads, both get the current head of the bucket.
+* They both update their respective new entry next pointer to point to the current head of the bucket.
+* The first thread does it and works.
+* The second thread does it but since it gets the current head not the new head of the bucket, its entry next pointer points to the old head and not the new head.
+* This inadvertently discards the entry added by the first thread.

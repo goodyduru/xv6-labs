@@ -1,2 +1,1 @@
-LAB=cow
-
+LAB=thread
