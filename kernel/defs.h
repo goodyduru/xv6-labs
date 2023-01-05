@@ -67,6 +67,8 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+void            kincrement(uint64);
+int             kfreememsize(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -84,6 +86,7 @@ int             pipewrite(struct pipe*, uint64, int);
 void            printf(char*, ...);
 void            panic(char*) __attribute__((noreturn));
 void            printfinit(void);
+void            backtrace(void);
 
 // proc.c
 int             cpuid(void);
@@ -110,6 +113,7 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+int             num_of_used_proc(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -182,6 +186,8 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
+uint64          allocate_new(pagetable_t, uint64);
+void            vmprint(pagetable_t pagetable);
 
 // plic.c
 void            plicinit(void);

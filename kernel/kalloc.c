@@ -13,6 +13,7 @@ void freerange(void *pa_start, void *pa_end);
 
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
+int references[((PHYSTOP-KERNBASE)/PGSIZE)+1];
 
 struct run {
   struct run *next;
@@ -50,6 +51,14 @@ kfree(void *pa)
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
+  
+  uint64 start = PGROUNDUP((uint64)end);
+  int index = ((uint64)pa - start )/ PGSIZE;
+  if ( references[index] > 1 ) {
+    references[index]--;
+    return;
+  }
+  references[index] = 0;
 
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
@@ -78,5 +87,37 @@ kalloc(void)
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+  if ( (uint64)r != 0 ) {
+    uint64 start = PGROUNDUP((uint64)end);
+    int index = ((uint64)r - start )/ PGSIZE;
+    references[index] = 1;
+  }
   return (void*)r;
+}
+
+
+void kincrement(uint64 pa) {
+  if((pa % PGSIZE) != 0 || (char*)pa < end || pa >= PHYSTOP)
+    panic("kincrement");
+
+  uint64 start = PGROUNDUP((uint64)end);
+  int index = (pa - start )/ PGSIZE;
+  references[index]++;
+}
+
+// Get free memory size
+int
+kfreememsize(void)
+{
+  struct run *r;
+  int count;
+  acquire(&kmem.lock);
+  r = kmem.freelist;
+  count = 0;
+  while(r) {
+    count++;
+    r = r->next;
+  }
+  release(&kmem.lock);
+  return count*PGSIZE;
 }
