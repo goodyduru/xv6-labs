@@ -113,6 +113,13 @@ extern uint64 sys_connect(void);
 extern uint64 sys_pgaccess(void);
 #endif
 
+#ifdef LAB_NET
+extern uint64 sys_connect(void);
+#endif
+#ifdef LAB_PGTBL
+extern uint64 sys_pgaccess(void);
+#endif
+
 // An array mapping syscall numbers from syscall.h
 // to the function that handles the system call.
 static uint64 (*syscalls[])(void) = {
