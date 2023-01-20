@@ -42,7 +42,7 @@ main()
     __sync_synchronize();
     started = 1;
   } else {
-    while(atomic_read4((int *) &started) == 0)
+    while(lockfree_read4((int *) &started) == 0)
       ;
     __sync_synchronize();
     printf("hart %d starting\n", cpuid());

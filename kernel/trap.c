@@ -29,6 +29,58 @@ trapinithart(void)
   w_stvec((uint64)kernelvec);
 }
 
+void
+ring()
+{
+  struct proc *current_proc = myproc();
+  if ( current_proc->interval == 0 ) {
+    return;
+  }
+  uint xticks;
+  acquire(&tickslock);
+  xticks = ticks;
+  release(&tickslock);
+  if ( ((xticks - current_proc->last_tick) >= current_proc->interval) && current_proc->handler_returned == 1 )  {
+    current_proc->last_tick = xticks;
+    //copy from trapframe to alarmframe
+    current_proc->alarmframe->epc = current_proc->trapframe->epc;
+    current_proc->alarmframe->ra = current_proc->trapframe->ra;
+    current_proc->alarmframe->sp = current_proc->trapframe->sp;
+    current_proc->alarmframe->t0 = current_proc->trapframe->t0;
+    current_proc->alarmframe->t1 = current_proc->trapframe->t1;
+    current_proc->alarmframe->t2 = current_proc->trapframe->t2;
+    current_proc->alarmframe->s0 = current_proc->trapframe->s0;
+    current_proc->alarmframe->s1 = current_proc->trapframe->s1;
+    current_proc->alarmframe->a0 = current_proc->trapframe->a0;
+    current_proc->alarmframe->a1 = current_proc->trapframe->a1;
+    current_proc->alarmframe->a2 = current_proc->trapframe->a2;
+    current_proc->alarmframe->a3 = current_proc->trapframe->a3;
+    current_proc->alarmframe->a4 = current_proc->trapframe->a4;
+    current_proc->alarmframe->a5 = current_proc->trapframe->a5;
+    current_proc->alarmframe->a6 = current_proc->trapframe->a6;
+    current_proc->alarmframe->a7 = current_proc->trapframe->a7;
+    current_proc->alarmframe->s2 = current_proc->trapframe->s2;
+    current_proc->alarmframe->s3 = current_proc->trapframe->s3;
+    current_proc->alarmframe->s4 = current_proc->trapframe->s4;
+    current_proc->alarmframe->s5 = current_proc->trapframe->s5;
+    current_proc->alarmframe->s6 = current_proc->trapframe->s6;
+    current_proc->alarmframe->s7 = current_proc->trapframe->s7;
+    current_proc->alarmframe->s8 = current_proc->trapframe->s8;
+    current_proc->alarmframe->s9 = current_proc->trapframe->s9;
+    current_proc->alarmframe->s10 = current_proc->trapframe->s10;
+    current_proc->alarmframe->s11 = current_proc->trapframe->s11;
+    current_proc->alarmframe->t3 = current_proc->trapframe->t3;
+    current_proc->alarmframe->t4 = current_proc->trapframe->t4;
+    current_proc->alarmframe->t5 = current_proc->trapframe->t5;
+    current_proc->alarmframe->t6 = current_proc->trapframe->t6;
+
+    current_proc->handler_returned = 0;
+
+    //set pc to callback
+    current_proc->trapframe->epc = current_proc->callback;
+  }
+}
+
 //
 // handle an interrupt, exception, or system call from user space.
 // called from trampoline.S
@@ -67,14 +119,30 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+    if ( which_dev == 2 ) {
+      ring();
+    }
   } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
+    // check for write instructions
+    if ( r_scause() == 15  ) {
+      uint64 va = r_stval();
+      uint64 result;
+      if ( (result = allocate_new(p->pagetable, va)) == 0 ) {
+        printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+        printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+        setkilled(p);
+      }
+    }
+    else {
+      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+      setkilled(p);
+    }
   }
 
   if(killed(p))
     exit(-1);
+  
 
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
@@ -190,7 +258,13 @@ devintr()
       uartintr();
     } else if(irq == VIRTIO0_IRQ){
       virtio_disk_intr();
-    } else if(irq){
+    }
+#ifdef LAB_NET
+    else if(irq == E1000_IRQ){
+      e1000_intr();
+    }
+#endif
+    else if(irq){
       printf("unexpected interrupt irq=%d\n", irq);
     }
 
