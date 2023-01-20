@@ -125,6 +125,7 @@ void            initlock(struct spinlock*, char*);
 void            release(struct spinlock*);
 void            push_off(void);
 void            pop_off(void);
+int             atomic_read4(int *addr);
 uint64          lockfree_read8(uint64 *addr);
 int             lockfree_read4(int *addr);
 #ifdef LAB_LOCK
