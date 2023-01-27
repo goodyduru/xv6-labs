@@ -44,6 +44,7 @@ ls(char *path)
 
   switch(st.type){
   case T_DEVICE:
+  case T_SYMLINK:
   case T_FILE:
     printf("%s %d %d %l\n", fmtname(path), st.type, st.ino, st.size);
     break;

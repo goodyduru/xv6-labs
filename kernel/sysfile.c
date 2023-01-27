@@ -305,10 +305,10 @@ uint64
 sys_open(void)
 {
   char path[MAXPATH];
-  int fd, omode;
+  int fd, omode, inum;
   struct file *f;
   struct inode *ip;
-  int n;
+  int n, count = 0;
 
   argint(1, &omode);
   if((n = argstr(0, path, MAXPATH)) < 0)
@@ -339,6 +339,35 @@ sys_open(void)
     iunlockput(ip);
     end_op();
     return -1;
+  }
+
+
+  if ( ip->type == T_SYMLINK && ((omode & O_NOFOLLOW) == 0) ) {
+    count = 0;
+    inum = ip->inum;
+    while ( count < 10 ) {
+      if ( (n = readi(ip, 0, (uint64)&path, 0, MAXPATH)) < 0 ) {
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
+      iunlockput(ip);
+      ip = namei(path);
+      if ( ip == 0 ) {
+        end_op();
+        return -1;
+      }
+      // detect cyclical values
+      if ( ip->inum == inum ) {
+        end_op();
+        return -1;
+      }
+      ilock(ip);
+      if ( ip->type != T_SYMLINK ) {
+        break;
+      }
+      count++;
+    }
   }
 
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
@@ -501,5 +530,33 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+uint64
+sys_symlink(void){
+  char target[MAXPATH], path[MAXPATH];
+  int len, n;
+  struct inode *ip;
+  if ( (len = argstr(0, target, MAXPATH)) < 0)
+    return -1;
+  
+  if ( (n = argstr(1, path, MAXPATH)) < 0)
+    return -1;
+  path[n++] = '\0';
+  target[len++] = '\0';
+  
+  begin_op();
+  ip = create(path, T_FILE, 0, 0);
+  
+  if (ip == 0){
+    end_op();
+    return -1;
+  }
+  ip->type = T_SYMLINK;
+  if ( (n = writei(ip, 0, (uint64)&target, 0, len)) < len )
+    panic("symlink");
+  iunlockput(ip);
+  end_op();
   return 0;
 }
