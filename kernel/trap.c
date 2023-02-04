@@ -67,10 +67,23 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
-    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-    setkilled(p);
+  } else if ( r_scause() == 5 || r_scause() == 13 ) {
+    // check for page fault
+    uint64 va = r_stval();
+    uint64 result;
+    int offset;
+    int index;
+    struct vma map;
+    if ( (index = within_region(p, va)) < 0 )
+      goto err;
+    map = p->maps[index];
+    if ((result = mmap_new(p->pagetable, va, map.prot)) == 0 )
+      goto err;
+    offset = (int)(result - p->maps[index].addr);
+    mapread(p->maps[index].file, result, PGSIZE, offset);
+  }
+  else {
+    goto err;
   }
 
   if(killed(p))
@@ -81,6 +94,12 @@ usertrap(void)
     yield();
 
   usertrapret();
+
+  err:
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    setkilled(p);
+    exit(-1);
 }
 
 //

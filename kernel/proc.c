@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -308,6 +309,15 @@ fork(void)
       np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
 
+  // copy all the mappings
+  for(i=0; i < VMASIZE; i++) {
+    if(i < p->map_count) {
+      np->maps[i] = p->maps[i];
+      np->maps[i].file = filedup(p->maps[i].file);
+    }
+  }
+  np->map_count = p->map_count;
+
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
@@ -350,6 +360,12 @@ exit(int status)
 
   if(p == initproc)
     panic("init exiting");
+
+  // Unmap vmas
+  for(int i = 0; i < p->map_count; i++) {
+    remove_map(p, &p->maps[i], -1);
+  }
+  p->map_count = 0;
 
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
@@ -681,3 +697,57 @@ procdump(void)
     printf("\n");
   }
 }
+
+int
+within_region(struct proc *p, uint64 va) {
+  int i;
+  uint64 addr;
+  for (i=0; i < p->map_count; i++) {
+    addr = p->maps[i].addr;
+    if ( addr <= va && va < (addr + p->maps[i].size) ) {
+      return i;
+    }
+  }
+  return -1;
+}
+
+uint64
+select_vma_addr(struct proc *p) {
+  if ( p->map_count == 0 ) {
+    return VMA_START;
+  }
+  uint64 addr = 0;
+  int length = 0;
+  for ( int i = 0; i < p->map_count; i++ ) {
+    if ( p->maps[i].addr > addr ) {
+      addr = p->maps[i].addr;
+      length = p->maps[i].size;
+    }
+  }
+  return PGROUNDUP(addr+length);
+}
+
+
+void remove_map(struct proc *p, struct vma *map, int length) {
+  uint64 addr, a;
+  int is_dirty;
+  // if length is negative, assume all map size
+  if ( length < 0 ) {
+    length = map->size;
+  }
+  addr = map->addr;
+  if ( map->flags & MAP_SHARED ) {
+    for ( a = addr; a < (addr + length); a += PGSIZE ) {
+      if ( (is_dirty = page_dirty(p->pagetable, a)) > 0 ) {
+        mapwrite(map->file, a, PGSIZE, a-addr);
+      }
+    }
+  }
+  unmmap_new(p->pagetable, addr, length);
+  if ( length >= map->size ) {
+    fileclose(map->file);
+  }
+
+
+}
+

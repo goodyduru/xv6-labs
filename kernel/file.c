@@ -180,3 +180,18 @@ filewrite(struct file *f, uint64 addr, int n)
   return ret;
 }
 
+void
+mapread(struct file *f, uint64 addr, int length, int offset) {
+  ilock(f->ip);
+    readi(f->ip, 1, addr, offset, length);
+  iunlock(f->ip);
+}
+
+void
+mapwrite(struct file *f, uint64 addr, int length, int offset) {
+  begin_op();
+  ilock(f->ip);
+    writei(f->ip, 1, addr, offset, length);
+  iunlock(f->ip);
+  end_op();
+}

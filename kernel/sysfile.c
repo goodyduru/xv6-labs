@@ -503,3 +503,74 @@ sys_pipe(void)
   }
   return 0;
 }
+
+uint64
+sys_mmap(void)
+{
+  int length, prot, flags, fd, offset, perms;
+  uint64 addr;
+  struct proc *p;
+  struct vma map;
+  struct file *file;
+  argint(1, &length);
+  argint(2, &prot);
+  argint(3, &flags);
+  argint(4, &fd);
+  argint(5, &offset);
+  p = myproc();
+  perms = 0;
+  file = p->ofile[fd];
+  if ( (flags & MAP_SHARED) && (prot & PROT_WRITE) && !file->writable ) {
+    return -1;
+  }
+  if ( prot & PROT_READ ) {
+    perms |= PTE_R;
+  }
+  if ( prot & PROT_WRITE ) {
+    perms |= PTE_W;
+  }
+  perms |= PTE_U;
+  addr = select_vma_addr(p);
+  map.addr = addr;
+  map.size = length;
+  map.flags = flags;
+  map.prot = perms;
+  map.file = file;
+  filedup(map.file); //increase reference count
+  p->maps[p->map_count++] = map;
+  return addr;
+}
+
+uint64
+sys_munmap(void)
+{
+  uint64 addr;
+  int length;
+  struct proc *p;
+  struct vma map;
+  int i;
+
+  argaddr(0, &addr);
+  argint(1, &length);
+  p = myproc();
+  addr = PGROUNDDOWN(addr);
+  map.prot = -1;
+  for ( i = 0; i < p->map_count; i++ ) {
+    if ( p->maps[i].addr == addr ) {
+      map = p->maps[i];
+      if ( length >= map.size ) {
+        p->maps[i] = p->maps[--p->map_count];
+      }
+      else {
+        p->maps[i].size -= length;
+        p->maps[i].addr = PGROUNDDOWN((addr + length));
+      }
+    }
+  }
+  if ( map.prot == -1 ) {
+    return -1;
+  }
+  // Unmap from the start to (start + length) is less than size
+  remove_map(p, &map, length);
+  return 1;
+}
